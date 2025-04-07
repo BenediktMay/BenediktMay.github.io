@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Matrix Viewer</title>
+    <style>
+        /* Basic Reset & Body Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0; /* Light background for the button area */
+            overflow: hidden; /* Prevent scrolling when image is not shown */
+        }
+
+        /* Button Container */
+        .button-container {
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically on mobile first */
+            gap: 15px; /* Space between buttons */
+            padding: 20px;
+            width: 90%; /* Take up most of the width on small screens */
+            max-width: 400px; /* Limit width on larger screens */
+        }
+
+        /* Button Styles */
+        .display-button {
+            padding: 18px 25px;
+            font-size: 1.2rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #007bff;
+            color: white;
+            text-align: center;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .display-button:hover {
+            background-color: #0056b3;
+        }
+
+        .display-button:active {
+             transform: scale(0.98); /* Slight shrink effect on press */
+        }
+
+        /* Image Container - Full Screen Overlay */
+        .image-overlay {
+            position: fixed; /* Fixed position to cover viewport */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95); /* Dark semi-transparent background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px; /* Padding around the image */
+            z-index: 1000; /* Ensure it's on top */
+            opacity: 0; /* Start hidden */
+            visibility: hidden; /* Start hidden */
+            transition: opacity 0.3s ease, visibility 0s linear 0.3s; /* Fade effect */
+        }
+
+        .image-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease, visibility 0s linear 0s;
+        }
+
+        /* Image Styling */
+        #dataMatrixImage {
+            display: block;
+            max-width: 100%; /* Max width is container width */
+            max-height: 100%; /* Max height is container height */
+            object-fit: contain; /* Maintain aspect ratio, fit within bounds */
+            background-color: white; /* White background for the code itself */
+            padding: 5px; /* Small padding around the code on its white background */
+            border-radius: 4px; /* Slightly rounded corners for the white background */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2); /* Subtle glow */
+        }
+
+        /* Close Button */
+        .close-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            line-height: 40px; /* Center the 'X' vertically */
+            text-align: center;
+            cursor: pointer;
+            z-index: 1001; /* Above the overlay background */
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+         .close-button:hover {
+            background-color: #c82333;
+         }
+
+         .close-button:active {
+            transform: scale(0.95);
+         }
+
+        /* Responsive adjustments for larger screens */
+        @media (min-width: 600px) {
+            .button-container {
+                flex-direction: row; /* Buttons side-by-side */
+                gap: 25px;
+                width: auto; /* Let content determine width */
+            }
+             .display-button {
+                 padding: 20px 35px;
+                 font-size: 1.3rem;
+             }
+             .close-button {
+                 width: 45px;
+                 height: 45px;
+                 line-height: 45px;
+                 font-size: 1.7rem;
+                 top: 20px;
+                 right: 20px;
+             }
+             .image-overlay {
+                 padding: 30px;
+             }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="button-container">
+        <button id="starButton" class="display-button">Star</button>
+        <button id="rectButton" class="display-button">Rectangle</button>
+    </div>
+
+    <div id="imageOverlay" class="image-overlay">
+        <button id="closeButton" class="close-button">&times;</button>
+        <img id="dataMatrixImage" src="" alt="Data Matrix Code">
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const starButton = document.getElementById('starButton');
+        const rectButton = document.getElementById('rectButton');
+        const imageOverlay = document.getElementById('imageOverlay');
+        const dataMatrixImage = document.getElementById('dataMatrixImage');
+        const closeButton = document.getElementById('closeButton');
+
+        // URLs for the Data Matrix codes
+        const starImageUrl = 'https://www.bluhmsysteme.com/blog/wp-content/uploads/2019/01/Data-Matrix-Code_allein.jpg';
+        const rectImageUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Datamatrix.svg/640px-Datamatrix.svg.png';
+
+        // Function to show the overlay with a specific image
+        function showImage(imageUrl) {
+            dataMatrixImage.src = imageUrl; // Set the image source
+            imageOverlay.classList.add('visible'); // Make the overlay visible
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+
+        // Function to hide the overlay
+        function hideImage() {
+            imageOverlay.classList.remove('visible'); // Hide the overlay
+            // Optionally clear the src after the transition ends to save memory
+            // setTimeout(() => { dataMatrixImage.src = ''; }, 300); // 300ms matches CSS transition
+            document.body.style.overflow = 'auto'; // Allow scrolling again if needed
+        }
+
+        // Event Listeners for buttons
+        starButton.addEventListener('click', () => {
+            showImage(starImageUrl);
+        });
+
+        rectButton.addEventListener('click', () => {
+            showImage(rectImageUrl);
+        });
+
+        // Event Listener for the close button
+        closeButton.addEventListener('click', hideImage);
+
+        // Optional: Close the overlay by clicking on the background
+        imageOverlay.addEventListener('click', (event) => {
+            // Check if the click was directly on the overlay background, not the image or close button
+            if (event.target === imageOverlay) {
+                hideImage();
+            }
+        });
+
+        // Optional: Close the overlay by pressing the Escape key
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && imageOverlay.classList.contains('visible')) {
+                hideImage();
+            }
+        });
+
+    </script>
+
+</body>
+</html>
