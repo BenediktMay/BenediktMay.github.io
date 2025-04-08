@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controllable Rotating Square</title>
+    <style>
+        /* Basic page setup */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+             /* Stack elements vertically */
+            flex-direction: column;
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            font-family: sans-serif; /* Add a default font */
+        }
+
+        /* Container for the visual elements */
+        .visualization {
+            margin-bottom: 30px; /* Space between circle and slider */
+            /* We need a container here to easily get the circle later if needed,
+               but the circle itself is the primary positioning context */
+        }
+
+        /* The main white circle */
+        .circle {
+            width: 8cm;
+            height: 8cm;
+            background-color: white;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* The rotating element */
+        .orbit {
+            /* Define the duration as a CSS variable */
+            --rotation-duration: 15s; /* Default duration */
+
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+
+            /* Use the CSS variable for the duration */
+            animation-name: rotate-square;
+            animation-duration: var(--rotation-duration); /* Use the variable */
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+
+        /* The black square */
+        .square {
+            width: 1cm;
+            height: 1cm;
+            background-color: black;
+            position: absolute;
+            top: -3.5cm; /* (Radius - Half Square Height) */
+            left: -0.5cm; /* -(Half Square Width) */
+        }
+
+        /* Rotation keyframes (unchanged) */
+        @keyframes rotate-square {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Styling for the controls */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Space between label, slider, and value display */
+        }
+
+        .controls label {
+            white-space: nowrap; /* Prevent label text wrapping */
+        }
+
+        .controls input[type="range"] {
+            width: 200px; /* Give the slider a decent width */
+        }
+
+        .controls span {
+            min-width: 45px; /* Reserve space for the value text */
+            text-align: right;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="visualization">
+        <div class="circle">
+            <div class="orbit" id="orbitElement"> <div class="square"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <label for="speedSlider">Rotation Speed:</label>
+        <input type="range" id="speedSlider" name="speed"
+               min="1"  max="150" value="100" step="0.5"> <span id="speedValue">15.0 s</span> </div>
+
+    <script>
+        // Get references to the HTML elements
+        const slider = document.getElementById('speedSlider');
+        const speedValueDisplay = document.getElementById('speedValue');
+        const orbitElement = document.getElementById('orbitElement');
+
+        // Function to update the speed display and CSS variable
+        function updateSpeed() {
+            const duration = slider.value; // Get the current value from the slider
+            // Update the text display (format to one decimal place)
+            speedValueDisplay.textContent = `${parseFloat(duration).toFixed(1)} s`;
+            // Update the CSS custom property on the orbit element
+            // This directly changes the animation-duration used in the CSS
+            orbitElement.style.setProperty('--rotation-duration', duration + 's');
+        }
+
+        // Add an event listener to the slider
+        // 'input' event fires continuously as the slider is dragged
+        slider.addEventListener('input', updateSpeed);
+
+        // Optional: Call initially to set the correct display text based on default slider value
+        // (although it's already set in the HTML, this ensures consistency if defaults change)
+        // updateSpeed();
+
+        console.log("Speed control initialized.");
+    </script>
+
+</body>
+</html>
