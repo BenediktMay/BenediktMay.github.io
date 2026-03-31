@@ -64,13 +64,30 @@
     let appData = { personen: [], gerichte: [] };
     const punkteMap = { "mag": 2, "neutral": 1, "nein": -3 };
 
+
     async function initialisiere() {
+        const url = 'data.json?v=' + Date.now();
         try {
-            const res = await fetch('data.json?v=' + Date.now());
-            appData = await res.json();
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.error(`[data.json] HTTP-Fehler: Status ${res.status} (${res.statusText}) bei URL: ${url}`);
+                throw new Error(`HTTP-Status ${res.status}`);
+            }
+            try {
+                appData = await res.json();
+            } catch (jsonErr) {
+                console.error(`[data.json] JSON-Parsing-Fehler:`, jsonErr);
+                throw new Error('JSON-Parsing-Fehler');
+            }
+            console.info(`[data.json] Erfolgreich geladen (${appData.personen?.length||0} Personen, ${appData.gerichte?.length||0} Gerichte)`);
         } catch (e) {
-            console.log("Keine data.json gefunden, nutze Demo-Daten");
+            console.error(`[data.json] Fehler beim Laden:`, e);
             appData = { personen: ["User1"], gerichte: [] };
+            // Zeige Fehler auch im UI an
+            const liste = document.getElementById('gerichte-liste');
+            if (liste) {
+                liste.innerHTML = `<span style='color:red;'>Fehler beim Laden von <b>data.json</b>: ${e.message || e}</span><br><small>Siehe Browser-Konsole für Details.</small>`;
+            }
         }
         renderPersonenCheckboxes();
         renderAdminInputs();
