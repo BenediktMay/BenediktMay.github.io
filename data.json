@@ -1,0 +1,21 @@
+{
+  "personen": ["Anna", "Ben", "Lukas"],
+  "gerichte": [
+    {
+      "name": "Spaghetti Bolognese",
+      "vorlieben": { "Anna": "mag", "Ben": "mag", "Lukas": "neutral" }
+    },
+    {
+      "name": "Brokkoli-Auflauf",
+      "vorlieben": { "Anna": "mag", "Ben": "nein", "Lukas": "nein" }
+    },
+    {
+      "name": "Pizza Margherita",
+      "vorlieben": { "Anna": "mag", "Ben": "mag", "Lukas": "mag" }
+    },
+    {
+      "name": "Linseneintopf",
+      "vorlieben": { "Anna": "neutral", "Ben": "nein", "Lukas": "neutral" }
+    }
+  ]
+}
