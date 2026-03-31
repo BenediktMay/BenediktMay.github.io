@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Matrix Viewer</title>
+    <title>Essensmatrix</title>
     <style>
         /* Basic Reset & Body Styling */
         * {
@@ -108,73 +108,111 @@
 </head>
 <body>
 
-    <div id="button-container">
-        <button id="star-button" class="action-button">Star</button>
-        <button id="rectangle-button" class="action-button">Rectangle</button>
-    </div>
-
-    <div id="image-overlay">
-        <button id="close-button" title="Close">&times;</button> <img id="data-matrix-image" src="" alt="Data Matrix Code">
-    </div>
+    <main style="padding: 30px;">
+        <h1>Essensmatrix</h1>
+        <div style="margin-bottom: 20px;display:flex;flex-wrap:wrap;gap:20px;align-items:end;">
+            <div>
+                <label for="neues-gericht-matrix"><b>Neues Gericht:</b></label>
+                <input id="neues-gericht-matrix" type="text" placeholder="z.B. Kartoffelauflauf" style="margin-right:10px;">
+                <button id="add-gericht-btn" class="action-button" style="padding:8px 18px;font-size:1em;">Hinzufügen</button>
+            </div>
+            <div style="font-size:0.95em;color:#666;">Tipp: Gericht löschen mit rotem X in der Tabelle</div>
+        </div>
+        <div id="matrix-container">Lade Daten...</div>
+        <div style="margin-top: 30px;">
+            <button id="save-btn" class="action-button">Speichern</button>
+            <button id="download-btn" class="action-button">Herunterladen</button>
+        </div>
+    </main>
 
     <script>
-        // Get references to the DOM elements
-        const starButton = document.getElementById('star-button');
-        const rectangleButton = document.getElementById('rectangle-button');
-        const imageOverlay = document.getElementById('image-overlay');
-        const dataMatrixImage = document.getElementById('data-matrix-image');
-        const closeButton = document.getElementById('close-button');
-        // Optional: Reference to the button container if we want to hide it
-        // const buttonContainer = document.getElementById('button-container');
+    let appData = { personen: [], gerichte: [] };
+    const vorliebeZustand = ["nein", "neutral", "mag"];
+    const vorliebeFarben = { nein: "#c62828", neutral: "#546e7a", mag: "#2e7d32" };
 
-        // Function to show the overlay with a specific image
-        function showImage(imageSrc, altText) {
-            dataMatrixImage.src = imageSrc; // Set the image source
-            dataMatrixImage.alt = altText;   // Set the alt text
-            imageOverlay.style.display = 'flex'; // Show the overlay (using flex as defined in CSS)
-            // Optional: Hide the buttons when overlay is shown
-            // buttonContainer.style.display = 'none';
-            // Optional: Prevent background scrolling when overlay is active
-            document.body.style.overflow = 'hidden';
+    async function ladeDaten() {
+        try {
+            const res = await fetch('data.json?v=' + Date.now());
+            appData = await res.json();
+        } catch (e) {
+            appData = { personen: [], gerichte: [] };
         }
+        renderMatrix();
+    }
 
-        // Function to hide the overlay
-        function hideImage() {
-            imageOverlay.style.display = 'none'; // Hide the overlay
-            dataMatrixImage.src = ""; // Clear the src to prevent loading issues
-            // Optional: Show the buttons again if they were hidden
-            // buttonContainer.style.display = 'flex';
-             // Optional: Restore background scrolling
-            document.body.style.overflow = 'auto';
+    function renderMatrix() {
+        const container = document.getElementById('matrix-container');
+        if (!appData.personen.length || !appData.gerichte.length) {
+            container.innerHTML = "Keine Daten gefunden.";
+            return;
         }
-
-        // Add event listeners to the buttons
-        starButton.addEventListener('click', function() {
-            showImage('Star.gif', 'Star Data Matrix Code');
+        let html = '<table style="border-collapse:collapse; width:100%; max-width:1200px; background:#fff;">';
+        html += '<thead><tr><th style="position:sticky;left:0;background:#eee;z-index:2;">Gericht</th>';
+        appData.personen.forEach(p => {
+            html += `<th>${p}</th>`;
         });
-
-        rectangleButton.addEventListener('click', function() {
-            showImage('Rectangle.gif', 'Rectangle Data Matrix Code');
+        html += '<th style="width:40px;"></th></tr></thead><tbody>';
+        appData.gerichte.forEach((g, gi) => {
+            html += `<tr>`;
+            html += `<td style="position:sticky;left:0;background:#f8f8f8;z-index:1;font-weight:bold;">${g.name}</td>`;
+            appData.personen.forEach((p, pi) => {
+                let v = g.vorlieben[p] || "neutral";
+                html += `<td style="text-align:center;cursor:pointer;background:${vorliebeFarben[v]};color:#fff;font-weight:bold;" onclick="toggleVorliebe(${gi},'${p}',this)">${v}</td>`;
+            });
+            html += `<td style="text-align:center;"><button onclick="deleteGericht(${gi})" style="background:#c62828;color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:1.2em;cursor:pointer;">×</button></td>`;
+            html += `</tr>`;
         });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
 
-        // Add event listener to the close button
-        closeButton.addEventListener('click', hideImage);
+    window.deleteGericht = function(gi) {
+        const gericht = appData.gerichte[gi]?.name || '';
+        if(confirm(`Gericht wirklich löschen?\n\n${gericht}`)) {
+            appData.gerichte.splice(gi, 1);
+            renderMatrix();
+        }
+    }
 
-        // Optional: Close the overlay if the user clicks outside the image (on the background)
-        imageOverlay.addEventListener('click', function(event) {
-            // Check if the clicked element is the overlay itself, not its children (image or close button)
-            if (event.target === imageOverlay) {
-                hideImage();
-            }
-        });
+    window.toggleVorliebe = function(gi, person, cell) {
+        let v = appData.gerichte[gi].vorlieben[person] || "neutral";
+        let idx = vorliebeZustand.indexOf(v);
+        let next = vorliebeZustand[(idx + 1) % vorliebeZustand.length];
+        appData.gerichte[gi].vorlieben[person] = next;
+        cell.textContent = next;
+        cell.style.background = vorliebeFarben[next];
+    }
 
-        // Optional: Close the overlay if the user presses the Escape key
-         document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape' && imageOverlay.style.display === 'flex') {
-                 hideImage();
-            }
-         });
+    document.getElementById('save-btn').onclick = function() {
+        fetch('data.json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(appData, null, 2)
+        }).then(() => alert('Gespeichert! (Hinweis: Funktioniert nur mit Backend)'));
+    };
 
+    document.getElementById('download-btn').onclick = function() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "data.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    };
+
+    document.getElementById('add-gericht-btn').onclick = function() {
+        const name = document.getElementById('neues-gericht-matrix').value.trim();
+        if(!name) return alert('Bitte einen Namen eingeben!');
+        if(appData.gerichte.some(g => g.name.toLowerCase() === name.toLowerCase())) return alert('Gericht existiert bereits!');
+        let vorlieben = {};
+        appData.personen.forEach(p => vorlieben[p] = "neutral");
+        appData.gerichte.push({ name, vorlieben });
+        document.getElementById('neues-gericht-matrix').value = '';
+        renderMatrix();
+    };
+
+    ladeDaten();
     </script>
 
 </body>
