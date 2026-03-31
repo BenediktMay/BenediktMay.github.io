@@ -1,143 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controllable Rotating Square</title>
+    <title>Essensplaner</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <style>
-        /* Basic page setup */
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-             /* Stack elements vertically */
-            flex-direction: column;
-            justify-content: center; /* Center horizontally */
-            align-items: center; /* Center vertically */
-            min-height: 100vh;
-            background-color: #f0f0f0;
-            font-family: sans-serif; /* Add a default font */
-        }
-
-        /* Container for the visual elements */
-        .visualization {
-            margin-bottom: 30px; /* Space between circle and slider */
-            /* We need a container here to easily get the circle later if needed,
-               but the circle itself is the primary positioning context */
-        }
-
-        /* The main white circle */
-        .circle {
-            width: 8cm;
-            height: 8cm;
-            background-color: white;
-            border-radius: 50%;
-            position: relative;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        /* The rotating element */
-        .orbit {
-            /* Define the duration as a CSS variable */
-            --rotation-duration: 15s; /* Default duration */
-
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-
-            /* Use the CSS variable for the duration */
-            animation-name: rotate-square;
-            animation-duration: var(--rotation-duration); /* Use the variable */
-            animation-timing-function: linear;
-            animation-iteration-count: infinite;
-        }
-
-        /* The black square */
-        .square {
-            width: 1cm;
-            height: 1cm;
-            background-color: black;
-            position: absolute;
-            top: -3.5cm; /* (Radius - Half Square Height) */
-            left: -0.5cm; /* -(Half Square Width) */
-        }
-
-        /* Rotation keyframes (unchanged) */
-        @keyframes rotate-square {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Styling for the controls */
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 10px; /* Space between label, slider, and value display */
-        }
-
-        .controls label {
-            white-space: nowrap; /* Prevent label text wrapping */
-        }
-
-        .controls input[type="range"] {
-            width: 200px; /* Give the slider a decent width */
-        }
-
-        .controls span {
-            min-width: 45px; /* Reserve space for the value text */
-            text-align: right;
-            font-weight: bold;
-        }
-
+        body { padding-top: 20px; }
+        .gericht-card { padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #111928; }
+        .score-badge { float: right; background: #39495c; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
+        .veto-warnung { color: #ff6b6b; font-size: 0.85em; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
+    <main class="container">
+        <h2>Wer isst heute mit?</h2>
+        <div id="loading">Lade Daten aus GitHub...</div>
+        
+        <fieldset id="personen-auswahl" style="display: none;"></fieldset>
+        <button id="berechnen-btn" style="display: none;" onclick="berechneRanking()">Gerichte vorschlagen</button>
 
-    <div class="visualization">
-        <div class="circle">
-            <div class="orbit" id="orbitElement"> <div class="square"></div>
-            </div>
-        </div>
-    </div>
+        <hr>
 
-    <div class="controls">
-        <label for="speedSlider">Rotation Speed:</label>
-        <input type="range" id="speedSlider" name="speed"
-               min="1"  max="150" value="100" step="0.5"> <span id="speedValue">15.0 s</span> </div>
+        <h2>Vorschläge</h2>
+        <div id="gerichte-liste"></div>
+    </main>
 
     <script>
-        // Get references to the HTML elements
-        const slider = document.getElementById('speedSlider');
-        const speedValueDisplay = document.getElementById('speedValue');
-        const orbitElement = document.getElementById('orbitElement');
+        let appData = null;
 
-        // Function to update the speed display and CSS variable
-        function updateSpeed() {
-            const duration = slider.value; // Get the current value from the slider
-            // Update the text display (format to one decimal place)
-            speedValueDisplay.textContent = `${parseFloat(duration).toFixed(1)} s`;
-            // Update the CSS custom property on the orbit element
-            // This directly changes the animation-duration used in the CSS
-            orbitElement.style.setProperty('--rotation-duration', duration + 's');
+        // Punkte-System: Veto bringt -3 Punkte
+        const punkteSystem = {
+            "mag": 2,
+            "neutral": 1,
+            "nein": -3
+        };
+
+        // 1. Daten aus der JSON-Datei von GitHub laden
+        async function ladeDaten() {
+            try {
+                // Holt die data.json, die im gleichen Ordner liegt
+                // Ein Cache-Buster (?v=...) verhindert, dass das Handy alte Daten lädt
+                const response = await fetch('data.json?v=' + new Date().getTime());
+                appData = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('personen-auswahl').style.display = 'block';
+                document.getElementById('berechnen-btn').style.display = 'block';
+                
+                bauePersonenAuswahl();
+            } catch (error) {
+                document.getElementById('loading').innerText = "Fehler beim Laden der Daten. Ist die data.json vorhanden?";
+                console.error("Ladefehler:", error);
+            }
         }
 
-        // Add an event listener to the slider
-        // 'input' event fires continuously as the slider is dragged
-        slider.addEventListener('input', updateSpeed);
+        // 2. Checkboxen generieren
+        function bauePersonenAuswahl() {
+            const container = document.getElementById('personen-auswahl');
+            container.innerHTML = "";
+            appData.personen.forEach(person => {
+                container.innerHTML += `
+                    <label>
+                        <input type="checkbox" name="person" value="${person}" checked>
+                        ${person}
+                    </label>
+                `;
+            });
+            berechneRanking();
+        }
 
-        // Optional: Call initially to set the correct display text based on default slider value
-        // (although it's already set in the HTML, this ensures consistency if defaults change)
-        // updateSpeed();
+        // 3. Logik & Berechnung mit -3 Punkten
+        function berechneRanking() {
+            if (!appData) return;
 
-        console.log("Speed control initialized.");
+            const checkboxes = document.querySelectorAll('input[name="person"]:checked');
+            const esser = Array.from(checkboxes).map(cb => cb.value);
+
+            if(esser.length === 0) {
+                document.getElementById('gerichte-liste').innerHTML = "<p>Bitte wähle jemanden aus.</p>";
+                return;
+            }
+
+            let ranking = appData.gerichte.map(gericht => {
+                let score = 0;
+                let vetoPersonen = [];
+
+                esser.forEach(person => {
+                    // Falls jemand nicht in der JSON steht, gehen wir von "neutral" aus
+                    let vorliebeText = gericht.vorlieben[person] || "neutral"; 
+                    let punkte = punkteSystem[vorliebeText];
+
+                    if (punkte === -3) {
+                        vetoPersonen.push(person);
+                    }
+                    score += punkte;
+                });
+
+                return { name: gericht.name, score: score, vetos: vetoPersonen };
+            });
+
+            // Sortieren: Höchste Punktzahl ganz nach oben
+            ranking.sort((a, b) => b.score - a.score);
+
+            // 4. Anzeige aufbauen
+            const listeContainer = document.getElementById('gerichte-liste');
+            listeContainer.innerHTML = "";
+
+            ranking.forEach(item => {
+                let hatVeto = item.vetos.length > 0;
+                let kartenStyle = hatVeto ? "border-left: 4px solid #ff6b6b;" : "border-left: 4px solid #a6e3a1;";
+                
+                let vetoText = hatVeto ? `<span class="veto-warnung">Veto von: ${item.vetos.join(', ')}</span>` : '';
+
+                listeContainer.innerHTML += `
+                    <div class="gericht-card" style="${kartenStyle}">
+                        <strong>${item.name}</strong> 
+                        <span class="score-badge">Score: ${item.score}</span>
+                        ${vetoText}
+                    </div>
+                `;
+            });
+        }
+
+        // App starten
+        ladeDaten();
     </script>
-
 </body>
 </html>
